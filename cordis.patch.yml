@@ -1,0 +1,5 @@
+# dsh-webhook bundle patch
+# 插入 host 插件行：注册 /webhook HTTP 入口 + webhook settings namespace + 配置 remote。
+- insert:
+    - id: dsh-webhook
+      name: dsh-webhook
