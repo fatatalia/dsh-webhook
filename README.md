@@ -5,8 +5,9 @@
 ## 功能
 
 - **HTTP 入口**：`POST /webhook/<hookId>`，Bearer token 认证（常数时间比较，防时序攻击）
-- **异步队列**：立即 202 返回，消息入队投递；同一 hook 串行处理（上一条未完成下一条排队），不同 hook 互不阻塞
-- **固定会话**：hookId 派生固定会话 id，上下文延续；支持 workspace / session / template 映射
+- **异步队列**：默认立即 202 返回，消息入队投递；同一 hook 串行处理（上一条未完成下一条排队），不同 hook 互不阻塞
+- **同步模式**：hook 配置 `sync: true` 时，等待 agent 完成并随 HTTP 响应返回回复文本（200 `{ok, reply}`）——适合小爱音箱等"发一句等一句"的交互场景
+- **固定会话**：hookId 派生固定会话 id，上下文延续；支持 workspace / session / sessionMode(新/持久) / template 映射
 - **典型场景**：手机把银行短信 POST 进来 → 固定会话 agent 用记账工具自动记账 → 完成后可调 iMessage 网关的全局 message 工具通知
 
 ## 目录
@@ -34,6 +35,12 @@ webhook:
       workspace: "/Users/<you>/dsh/default"   # 投递目标工作区
       session: ""                             # 可选；默认用 hookId 派生固定会话
       template: "请处理这条短信并记账：\n{{text}}"  # 消息模板，{{text}} 为请求体
+    xiaoai:
+      token: "<token>"
+      workspace: "/Users/<you>/dsh/default"
+      sessionMode: "persistent"               # "persistent" 固定会话 / "new" 一次性
+      sync: true                              # 同步模式：等待回复并随 HTTP 返回
+      template: "你是智能管家，简洁口语化回答：\n{{text}}"
 ```
 
 调用方式：
