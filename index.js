@@ -122,10 +122,11 @@ function extractText(body, contentType) {
 
 export function apply(ctx, config) {
   const Logger = ctx.logger;
+  const ts = () => new Date().toISOString();
   const log = {
-    info: (m) => { console.log(`[wh] ${m}`); try { Logger?.info?.(m); } catch {} },
-    warn: (m) => { console.warn(`[wh:warn] ${m}`); try { Logger?.warn?.(m); } catch {} },
-    error: (m) => { console.error(`[wh:err] ${m}`); try { Logger?.error?.(m); } catch {} },
+    info: (m) => { console.log(`[${ts()}] [wh] ${m}`); try { Logger?.info?.(m); } catch {} },
+    warn: (m) => { console.warn(`[${ts()}] [wh:warn] ${m}`); try { Logger?.warn?.(m); } catch {} },
+    error: (m) => { console.error(`[${ts()}] [wh:err] ${m}`); try { Logger?.error?.(m); } catch {} },
   };
 
   // 注册 schema + 拿 scope（配置落盘 settings.yaml 的 webhook 段，热生效）。
