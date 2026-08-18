@@ -31,6 +31,7 @@ const HookSchema = z.object({
   session: z.string(),
   sessionMode: z.string(),
   template: z.string().required(),
+  sync: z.boolean(), // true = 同步模式：等待 agent 回复并作为 HTTP 响应返回（供音箱等交互场景）
 });
 const WebhookSchema = z.object({
   hooks: z.dict(HookSchema),
@@ -191,7 +192,17 @@ export function apply(ctx, config) {
         const text = extractText(await readBody(req), req.headers["content-type"]);
         if (!text) return send(400, { ok: false, error: "empty body" });
 
-        // 入队异步投递，立即返回 202（不等 agent 完成）。
+        // 同步模式（hook.sync=true）：入队并等待 agent 回复，回复文本随 HTTP 响应返回。
+        // 异步模式（默认）：入队立即返回 202（银行短信记账等场景）。
+        if (hook.sync === true) {
+          log.info(`webhook: [${hookId}] 同步投递 text=${text.slice(0, 60)}…`);
+          const reply = await core.enqueueSync(hookId, text, 120000);
+          if (reply == null) {
+            return send(504, { ok: false, error: "timeout or no reply", hook: hookId });
+          }
+          return send(200, { ok: true, reply, hook: hookId });
+        }
+
         core.enqueue(hookId, text);
         log.info(`webhook: [${hookId}] 已入队 text=${text.slice(0, 60)}…`);
         return send(202, { ok: true, queued: true, hook: hookId });
