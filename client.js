@@ -59,6 +59,14 @@ window.__ModuleLoader__.load({
           ] }),
           S.jsx("span", { style: { color: "var(--dsw-alias-label-tertiary)", fontSize: 12 }, children: "new 模式每次 hook 独立会话，防止上一条内容影响下一条；处理完自动归档" }),
         ] }),
+        S.jsxs("div", { style: { margin: "6px 0", display: "flex", alignItems: "center", gap: 10 }, children: [
+          S.jsx("label", { style: labelStyle, children: "同步模式" }),
+          S.jsx("label", { style: { display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 13 }, children: [
+            S.jsx("input", { type: "checkbox", checked: hook.sync === true, onChange: (e) => set("sync", e.target.checked), style: { accentColor: "var(--dsw-alias-state-info-primary, #08f)", cursor: "pointer" } }),
+            S.jsx("span", { children: "等待 agent 回复并随 HTTP 响应返回（200 {ok, reply}）" }),
+          ] }),
+        ] }),
+        S.jsx("p", { style: { margin: "-2px 0 6px 120px", color: "var(--dsw-alias-label-tertiary)", fontSize: 12 }, children: "勾选后 POST 会等待 agent 处理完（最长 120s）并返回回复文本，供音箱等交互场景；不勾则立即返回 202 异步入队（短信记账等场景）。" }),
         S.jsxs("div", { style: { margin: "6px 0", display: "flex", gap: 10 }, children: [
           S.jsx("label", { style: labelStyle, children: "模板" }),
           S.jsx("textarea", { value: hook.template ?? "", onChange: (e) => set("template", e.target.value), rows: 4, style: { ...inputStyle, fontFamily: "monospace", fontSize: 12 }, placeholder: "发给 agent 的消息模板，{{text}} 会被替换为短信内容" }),
@@ -103,7 +111,7 @@ window.__ModuleLoader__.load({
         const id = newId.trim();
         if (!id) return;
         if (hooks[id]) return;
-        setCfg((c) => ({ ...c, hooks: { ...(c.hooks || {}), [id]: { token: "", workspace: "", session: "", template: "请处理这条短信并记账：\n{{text}}" } } }));
+        setCfg((c) => ({ ...c, hooks: { ...(c.hooks || {}), [id]: { token: "", workspace: "", session: "", template: "请处理这条短信并记账：\n{{text}}", sync: false } } }));
         setNewId("");
       };
       const save = () => {
@@ -112,7 +120,7 @@ window.__ModuleLoader__.load({
 
       return S.jsxs("div", { style: { maxWidth: 720, fontFamily: "inherit", fontSize: 14, lineHeight: 1.6 }, children: [
         S.jsx("p", { style: { color: "var(--dsw-alias-label-secondary)", margin: "0 0 12px" },
-          children: "Webhook：外部 POST /webhook/<hookId>（Bearer token 认证）→ 消息入队 → 投递到固定会话。同一 hook 串行处理，上一条约旦未完成下一条件入队列。典型场景：手机银行短信转发自动记账。" }),
+          children: "Webhook：外部 POST /webhook/<hookId>（Bearer token 认证）→ 消息入队 → 投递到固定会话。同一 hook 串行处理。默认异步（202 即回）；勾选同步模式则等待 agent 回复并返回（200 {ok, reply}）。典型场景：手机银行短信转发自动记账（异步）、音箱对话（同步）。" }),
         Object.keys(hooks).length === 0
           ? S.jsx("p", { style: { color: "var(--dsw-alias-label-tertiary)" }, children: "还没有任何 webhook，先添加一个。" })
           : Object.keys(hooks).sort().map((id) => S.jsx(HookCard, { key: id, id, hook: hooks[id], onPatch: patch, onRemove: remove })),
