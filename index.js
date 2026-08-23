@@ -32,8 +32,8 @@ const HookSchema = z.object({
   sessionMode: z.string(),
   template: z.string().required(),
   sync: z.boolean(), // true = 同步模式：等待 agent 回复并作为 HTTP 响应返回（供音箱等交互场景）
-  /** turn 级单步超时（ms）：step 超过该时长被 dsh-turn-guard 强制 cancel；不配/0 = 不限制。 */
-  stepTimeoutMs: z.number(),
+  /** turn 级单步超时（秒）：step 超过该时长被 dsh-turn-guard 强制 cancel；不配/0 = 不限制。 */
+  stepTimeoutSec: z.number(),
 });
 const WebhookSchema = z.object({
   hooks: z.dict(HookSchema),

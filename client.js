@@ -69,8 +69,8 @@ window.__ModuleLoader__.load({
         S.jsx("p", { style: { margin: "-2px 0 6px 120px", color: "var(--dsw-alias-label-tertiary)", fontSize: 12 }, children: "勾选后 POST 会等待 agent 处理完（最长 120s）并返回回复文本，供音箱等交互场景；不勾则立即返回 202 异步入队（短信记账等场景）。" }),
         S.jsxs("div", { style: { margin: "6px 0", display: "flex", alignItems: "center", gap: 10 }, children: [
           S.jsx("label", { style: labelStyle, children: "单步超时" }),
-          S.jsx("input", { type: "number", min: 0, step: 1000, value: hook.stepTimeoutMs ?? 0, onChange: (e) => set("stepTimeoutMs", Number(e.target.value) || 0), style: { width: 140, padding: "4px 8px", borderRadius: 6, border: "1px solid var(--dsw-alias-divider, #ddd)", fontSize: 13 }, placeholder: "0 = 不限制" }),
-          S.jsx("span", { style: { color: "var(--dsw-alias-label-tertiary)", fontSize: 12 }, children: "ms，单步（一次模型请求+工具执行）超过该时长强制中断，0 = 不限制" }),
+          S.jsx("input", { type: "number", min: 0, step: 1, value: hook.stepTimeoutSec ?? 0, onChange: (e) => set("stepTimeoutSec", Number(e.target.value) || 0), style: { width: 140, padding: "4px 8px", borderRadius: 6, border: "1px solid var(--dsw-alias-divider, #ddd)", fontSize: 13 }, placeholder: "0 = 不限制" }),
+          S.jsx("span", { style: { color: "var(--dsw-alias-label-tertiary)", fontSize: 12 }, children: "秒，单步（一次模型请求+工具执行）超过该时长强制中断，0 = 不限制" }),
         ] }),
         S.jsxs("div", { style: { margin: "6px 0", display: "flex", gap: 10 }, children: [
           S.jsx("label", { style: labelStyle, children: "模板" }),
@@ -116,7 +116,7 @@ window.__ModuleLoader__.load({
         const id = newId.trim();
         if (!id) return;
         if (hooks[id]) return;
-        setCfg((c) => ({ ...c, hooks: { ...(c.hooks || {}), [id]: { token: "", workspace: "", session: "", template: "请处理这条短信并记账：\n{{text}}", sync: false, stepTimeoutMs: 0 } } }));
+        setCfg((c) => ({ ...c, hooks: { ...(c.hooks || {}), [id]: { token: "", workspace: "", session: "", template: "请处理这条短信并记账：\n{{text}}", sync: false, stepTimeoutSec: 0 } } }));
         setNewId("");
       };
       const save = () => {
