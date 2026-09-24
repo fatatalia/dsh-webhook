@@ -2,6 +2,13 @@
 
 提供 HTTP webhook 入口 `POST /webhook/<hookId>`，把外部请求转成消息投递到 dsh 的固定会话，由 agent 处理。随 dsh web 启停，零 dsh 框架改动。
 
+## dsh 版本兼容性
+
+**要求 dsh ≥ 0.1.7-rc.1**（已在 0.1.7-rc.1 实测通过）。
+
+- **`ctx.settings.register()` 已移除**（2026-09-24）：原 `webhook` settings namespace 并入插件 `Config`，可热改字段标 `.volatile()`；`inject` 去掉 `settings`。
+- **Typert strict codec 必须带 `create()` 工厂**（0.1.7 客户端校验）：config / payload / result 三处 codec 均已补 `create()`。
+
 ## 功能
 
 - **HTTP 入口**：`POST /webhook/<hookId>`，Bearer token 认证（常数时间比较，防时序攻击）

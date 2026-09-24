@@ -18,30 +18,32 @@ import { WebhookCore } from "./lib/webhook-core.mjs";
 
 export const name = "dsh-webhook";
 
-export const inject = ["typert", "settings", "agents", "agentDefaultModel", "agentPresets", "sessions", "workspaceRegistry", "sessionPersistence", "webServer"];
+export const inject = ["typert", "agents", "agentDefaultModel", "agentPresets", "sessions", "workspaceRegistry", "sessionPersistence", "webServer"];
 
 export const Config = z.object({
   settingsPath: z.string().default(join(homedir(), ".dsh", "settings.yaml")),
-});
-
-/** `webhook` settings namespace：hooks 表（hookId → 认证/映射/模板）。 */
-const HookSchema = z.object({
-  token: z.string().required(),
-  workspace: z.string().required(),
-  session: z.string(),
-  sessionMode: z.string(),
-  template: z.string().required(),
-  sync: z.boolean(), // true = 同步模式：等待 agent 回复并作为 HTTP 响应返回（供音箱等交互场景）
-  /** turn 级单步超时（秒）：step 超过该时长被 dsh-turn-guard 强制 cancel；不配/0 = 不限制。 */
-  stepTimeoutSec: z.number(),
-});
-const WebhookSchema = z.object({
-  hooks: z.dict(HookSchema),
+  /**
+   * hooks 表（hookId → 认证/映射/模板）。
+   * 2026-09-24 适配 dsh 0.1.7：ctx.settings.register() 已移除，原 `webhook`
+   * settings namespace 并入插件 Config；.volatile() 字段可在设置页热改。
+   */
+  hooks: z.dict(z.object({
+    token: z.string().required(),
+    workspace: z.string().required(),
+    session: z.string(),
+    sessionMode: z.string(),
+    template: z.string().required(),
+    sync: z.boolean(), // true = 同步模式：等待 agent 回复并作为 HTTP 响应返回（供音箱等交互场景）
+    /** turn 级单步超时（秒）：step 超过该时长被 dsh-turn-guard 强制 cancel；不配/0 = 不限制。 */
+    stepTimeoutSec: z.number(),
+  })).default({}).volatile(),
 });
 
 // ── Typert wire schemas（宽松 parse） ───────────────────────────────────────
 function parseObj() {
-  return { parse(value) { if (typeof value !== "object" || value === null) throw new Error("expected object"); return value; } };
+  // 0.1.7：typert strict codec 必须有 create() 工厂（gateway 走 codec.create().parse(v)）。
+  const parse = (value) => { if (typeof value !== "object" || value === null) throw new Error("expected object"); return value; };
+  return { parse, create: () => ({ parse }) };
 }
 const getResultSchema = parseObj();
 const setPayloadSchema = parseObj();
@@ -59,7 +61,7 @@ const MANIFEST = {
       method: "getConfig",
       invocation: { kind: "direct" },
       parameters: [],
-      result: { mode: "strict", typeSymbol: "dsh-webhook#WebhookConfig", schema: getResultSchema },
+      result: { mode: "strict", typeSymbol: "dsh-webhook#WebhookConfig", schema: getResultSchema, create: () => getResultSchema },
     },
     {
       id: "dsh-webhook#webhook/setConfig",
@@ -68,9 +70,9 @@ const MANIFEST = {
       method: "setConfig",
       invocation: { kind: "direct" },
       parameters: [
-        { name: "payload", wire: "payload", source: "json", codec: { mode: "strict", typeSymbol: "dsh-webhook#SetPayload", schema: setPayloadSchema } },
+        { name: "payload", wire: "payload", source: "json", codec: { mode: "strict", typeSymbol: "dsh-webhook#SetPayload", schema: setPayloadSchema, create: () => setPayloadSchema } },
       ],
-      result: { mode: "strict", typeSymbol: "dsh-webhook#SetResult", schema: setResultSchema },
+      result: { mode: "strict", typeSymbol: "dsh-webhook#SetResult", schema: setResultSchema, create: () => setResultSchema },
     },
   ],
   model: { services: [], events: [], objects: [] },
@@ -132,10 +134,19 @@ export function apply(ctx, config) {
     error: (m) => { console.error(`[${ts()}] [wh:err] ${m}`); try { Logger?.error?.(m); } catch {} },
   };
 
-  // 注册 schema + 拿 scope（配置落盘 settings.yaml 的 webhook 段，热生效）。
-  const scope = ctx.settings.register("webhook", WebhookSchema, {
-    base: { hooks: {} },
-  });
+  // 0.1.7：配置即插件 Config 的 volatile 字段，这里适配出等价的 scope 外壳。
+  const scope = {
+    get: () => ({ hooks: config.hooks.get() }),
+    async update(patch) {
+      const editor = ctx.get("configEditor");
+      const entry = ctx.fiber?.entry;
+      if (!editor || entry === undefined) return;
+      await editor.edit(entry, (current) => ({ ...current, ...patch }));
+    },
+    watch(cb) {
+      ctx.on("loader/volatile-update", () => { cb(scope.get()); });
+    },
+  };
   const service = new WebhookService(ctx, scope);
   ctx.effect(() => ctx.typert.register(MANIFEST), "dsh-webhook: typert manifest");
 
